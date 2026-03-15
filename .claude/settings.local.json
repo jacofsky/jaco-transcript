@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm init -y)",
+      "Bash(npm install commander execa && npm install -D typescript tsx @types/node)",
+      "Bash(chmod +x /Users/valentinjacofsky/Desktop/jaco-transcript/bin/jt.js)",
+      "Bash(npx tsx src/index.ts --help)",
+      "Bash(npx tsx src/index.ts transcribe --help)",
+      "Bash(npx tsx src/index.ts transcribe noexiste.mp3)"
+    ]
+  }
+}
