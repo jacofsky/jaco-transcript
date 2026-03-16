@@ -13,6 +13,7 @@ import {
 } from "./utils.js";
 import { transcribe } from "./transcribe.js";
 import { formatMarkdown } from "./formatter.js";
+import select from "@inquirer/select";
 
 const program = new Command();
 
@@ -26,7 +27,7 @@ program
   .description("Transcribir un archivo de audio o video a Markdown")
   .argument("<file>", "Archivo de audio (mp3, wav, m4a) o video (mp4, webm)")
   .option("-o, --output <path>", "Ruta del archivo de salida (.md)")
-  .option("-m, --model <name>", "Modelo de Whisper a usar", "large-v3")
+  .option("-m, --model <name>", "Modelo de Whisper a usar")
   .option("--no-diarize", "Desactivar diarizacion de hablantes")
   .option("--hf-token <token>", "Token de HuggingFace para diarizacion")
   .option("-l, --language <lang>", "Idioma de la transcripcion", "es")
@@ -35,25 +36,41 @@ program
       const inputPath = resolve(file);
       validateInputFile(inputPath);
 
+      if (!opts.model) {
+        opts.model = await select({
+          message: "Selecciona el modelo de Whisper:",
+          choices: [
+            { name: "tiny     (~1 GB VRAM, muy rapida, calidad baja)", value: "tiny" },
+            { name: "base     (~1 GB VRAM, rapida, calidad media)", value: "base" },
+            { name: "small    (~2 GB VRAM, media, calidad buena)", value: "small" },
+            { name: "medium   (~5 GB VRAM, lenta, calidad muy buena)", value: "medium" },
+            { name: "large-v3 (~10 GB VRAM, muy lenta, calidad excelente)", value: "large-v3" },
+          ],
+          default: "large-v3",
+        });
+      }
+
       const outputPath = opts.output
         ? resolve(opts.output)
         : getDefaultOutputPath(inputPath);
 
-      console.log(`Archivo: ${inputPath}`);
-      console.log(`Modelo: ${opts.model}`);
-      console.log(`Diarizacion: ${opts.diarize ? "Si" : "No"}`);
-      console.log(`Idioma: ${opts.language}`);
-      console.log(`Salida: ${outputPath}\n`);
+      console.log(`\n  Archivo:      ${inputPath}`);
+      console.log(`  Modelo:       ${opts.model}`);
+      console.log(`  Diarizacion:  ${opts.diarize ? "Si" : "No"}`);
+      console.log(`  Idioma:       ${opts.language}`);
+      console.log(`  Salida:       ${outputPath}\n`);
 
       let audioPath = inputPath;
       let tempAudio: string | null = null;
 
       if (isVideoFile(inputPath)) {
-        console.log("Extrayendo audio del video...");
+        console.log("[1/3] Extrayendo audio del video...");
         audioPath = await extractAudio(inputPath);
         tempAudio = audioPath;
-        console.log("Audio extraido.\n");
+        console.log("[1/3] Audio extraido.\n");
       }
+
+      console.log(`[${isVideoFile(inputPath) ? "2/3" : "1/2"}] Transcribiendo...\n`);
 
       const result = await transcribe(audioPath, {
         model: opts.model,
@@ -61,6 +78,8 @@ program
         hfToken: opts.hfToken,
         language: opts.language,
       });
+
+      console.log(`\n[${isVideoFile(inputPath) ? "3/3" : "2/2"}] Generando Markdown...`);
 
       const markdown = formatMarkdown(result, {
         inputPath,

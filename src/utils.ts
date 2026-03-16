@@ -53,6 +53,23 @@ export async function extractAudio(videoPath: string): Promise<string> {
   return outputPath;
 }
 
+export async function getAudioDuration(filePath: string): Promise<number> {
+  const { stdout } = await execa("ffprobe", [
+    "-v",
+    "quiet",
+    "-show_entries",
+    "format=duration",
+    "-of",
+    "csv=p=0",
+    filePath,
+  ]);
+  const duration = parseFloat(stdout.trim());
+  if (isNaN(duration)) {
+    throw new Error("No se pudo obtener la duracion del audio");
+  }
+  return duration;
+}
+
 export function formatTimestamp(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
