@@ -3,6 +3,7 @@ import { mkdtemp, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import cliProgress from "cli-progress";
+import chalk from "chalk";
 import { getAudioDuration, formatTimestamp } from "./utils.js";
 
 export interface Segment {
@@ -47,12 +48,12 @@ export async function transcribe(
     const token = options.hfToken || process.env.HF_TOKEN;
     if (!token) {
       console.warn(
-        "Advertencia: No se encontro HF_TOKEN. La diarizacion requiere un token de HuggingFace."
+        chalk.yellow("⚠ Advertencia: No se encontro HF_TOKEN. La diarizacion requiere un token de HuggingFace.")
       );
       console.warn(
-        "Configura la variable de entorno HF_TOKEN o usa --hf-token <token>"
+        chalk.yellow("  Configura la variable de entorno HF_TOKEN o usa --hf-token <token>")
       );
-      console.warn("Continuando sin diarizacion...\n");
+      console.warn(chalk.yellow("  Continuando sin diarizacion...\n"));
       args.splice(args.indexOf("--diarize"), 1);
     } else {
       args.push("--hf_token", token);
@@ -68,16 +69,16 @@ export async function transcribe(
   }
 
   const durationStr = audioDuration > 0 ? formatTimestamp(audioDuration) : "??:??:??";
-  console.log(`Duracion del audio: ${durationStr}\n`);
+  console.log(`${chalk.gray("Duracion del audio:")} ${chalk.white.bold(durationStr)}\n`);
 
   const bar = new cliProgress.SingleBar(
     {
       format:
-        "Transcribiendo |{bar}| {percentage}% | ETA: {eta_formatted} | {phase}",
+        chalk.cyan("{bar}") + chalk.gray(" | ") + chalk.white("{percentage}%") + chalk.gray(" | ETA: ") + chalk.yellow("{eta_formatted}") + chalk.gray(" | ") + chalk.magenta("{phase}"),
       hideCursor: true,
       clearOnComplete: false,
       barCompleteChar: "\u2588",
-      barIncompleteChar: "\u2591",
+      barIncompleteChar: chalk.gray("\u2591"),
     },
     cliProgress.Presets.shades_classic
   );
@@ -164,7 +165,7 @@ export async function transcribe(
   const jsonFile = files.find((f) => f.endsWith(".json"));
   if (!jsonFile) {
     bar.stop();
-    throw new Error("whisperx no genero archivo JSON de salida");
+    throw new Error(chalk.red("whisperx no genero archivo JSON de salida"));
   }
 
   const rawJson = await readFile(join(outputDir, jsonFile), "utf-8");
@@ -179,7 +180,7 @@ export async function transcribe(
     })
   );
 
-  bar.update(100, { phase: "Completado!" });
+  bar.update(100, { phase: chalk.green.bold("Completado!") });
   bar.stop();
 
   return {

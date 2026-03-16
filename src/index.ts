@@ -5,6 +5,7 @@ import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { rm } from "node:fs/promises";
 import { dirname } from "node:path";
+import chalk from "chalk";
 import {
   validateInputFile,
   isVideoFile,
@@ -54,23 +55,26 @@ program
         ? resolve(opts.output)
         : getDefaultOutputPath(inputPath);
 
-      console.log(`\n  Archivo:      ${inputPath}`);
-      console.log(`  Modelo:       ${opts.model}`);
-      console.log(`  Diarizacion:  ${opts.diarize ? "Si" : "No"}`);
-      console.log(`  Idioma:       ${opts.language}`);
-      console.log(`  Salida:       ${outputPath}\n`);
+      console.log(chalk.bold.cyan("\n  ╔══════════════════════════════════════╗"));
+      console.log(chalk.bold.cyan("  ║") + chalk.bold("  jaco-transcript                    ") + chalk.bold.cyan("║"));
+      console.log(chalk.bold.cyan("  ╚══════════════════════════════════════╝\n"));
+      console.log(`  ${chalk.gray("Archivo:")}      ${chalk.white(inputPath)}`);
+      console.log(`  ${chalk.gray("Modelo:")}       ${chalk.yellow(opts.model)}`);
+      console.log(`  ${chalk.gray("Diarizacion:")}  ${opts.diarize ? chalk.green("Si") : chalk.red("No")}`);
+      console.log(`  ${chalk.gray("Idioma:")}       ${chalk.white(opts.language)}`);
+      console.log(`  ${chalk.gray("Salida:")}       ${chalk.white(outputPath)}\n`);
 
       let audioPath = inputPath;
       let tempAudio: string | null = null;
 
       if (isVideoFile(inputPath)) {
-        console.log("[1/3] Extrayendo audio del video...");
+        console.log(chalk.blue("▶ [1/3]") + " Extrayendo audio del video...");
         audioPath = await extractAudio(inputPath);
         tempAudio = audioPath;
-        console.log("[1/3] Audio extraido.\n");
+        console.log(chalk.green("✔ [1/3]") + " Audio extraido.\n");
       }
 
-      console.log(`[${isVideoFile(inputPath) ? "2/3" : "1/2"}] Transcribiendo...\n`);
+      console.log(chalk.blue(`▶ [${isVideoFile(inputPath) ? "2/3" : "1/2"}]`) + " Transcribiendo...\n");
 
       const result = await transcribe(audioPath, {
         model: opts.model,
@@ -79,7 +83,7 @@ program
         language: opts.language,
       });
 
-      console.log(`\n[${isVideoFile(inputPath) ? "3/3" : "2/2"}] Generando Markdown...`);
+      console.log(chalk.blue(`\n▶ [${isVideoFile(inputPath) ? "3/3" : "2/2"}]`) + " Generando Markdown...");
 
       const markdown = formatMarkdown(result, {
         inputPath,
@@ -88,7 +92,7 @@ program
       });
 
       await writeFile(outputPath, markdown, "utf-8");
-      console.log(`\nTranscripcion guardada en: ${outputPath}`);
+      console.log(chalk.green.bold(`\n✔ Transcripcion guardada en: ${outputPath}`));
 
       if (tempAudio) {
         await rm(dirname(tempAudio), { recursive: true, force: true });
@@ -96,7 +100,7 @@ program
     } catch (error) {
       const msg =
         error instanceof Error ? error.message : String(error);
-      console.error(`\nError: ${msg}`);
+      console.error(chalk.red.bold(`\n✖ Error: ${msg}`));
       process.exit(1);
     }
   });
