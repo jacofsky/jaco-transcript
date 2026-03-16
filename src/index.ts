@@ -56,7 +56,7 @@ program
         : getDefaultOutputPath(inputPath);
 
       console.log(chalk.bold.cyan("\n  ╔══════════════════════════════════════╗"));
-      console.log(chalk.bold.cyan("  ║") + chalk.bold("  jaco-transcript                    ") + chalk.bold.cyan("║"));
+      console.log(chalk.bold.cyan("  ║") + chalk.bold("  jaco-transcript                     ") + chalk.bold.cyan("║"));
       console.log(chalk.bold.cyan("  ╚══════════════════════════════════════╝\n"));
       console.log(`  ${chalk.gray("Archivo:")}      ${chalk.white(inputPath)}`);
       console.log(`  ${chalk.gray("Modelo:")}       ${chalk.yellow(opts.model)}`);
