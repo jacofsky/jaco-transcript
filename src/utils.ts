@@ -34,14 +34,14 @@ export function getDefaultOutputPath(inputPath: string): string {
 
 export async function extractAudio(videoPath: string): Promise<string> {
   const tempDir = await mkdtemp(join(tmpdir(), "jt-"));
-  const outputPath = join(tempDir, "audio.wav");
+  const outputPath = join(tempDir, "audio.mp3");
 
   await execa("ffmpeg", [
     "-i",
     videoPath,
     "-vn",
-    "-acodec",
-    "pcm_s16le",
+    "-q:a",
+    "0",
     "-ar",
     "16000",
     "-ac",

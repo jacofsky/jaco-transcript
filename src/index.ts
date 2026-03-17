@@ -5,6 +5,7 @@ import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { rm } from "node:fs/promises";
 import { dirname } from "node:path";
+import { cpus } from "node:os";
 import chalk from "chalk";
 import {
   validateInputFile,
@@ -14,6 +15,7 @@ import {
 } from "./utils.js";
 import { transcribe } from "./transcribe.js";
 import { formatMarkdown } from "./formatter.js";
+import { detectHardware } from "./hardware.js";
 import select from "@inquirer/select";
 import password from "@inquirer/password";
 
@@ -33,12 +35,40 @@ program
   .option("--no-diarize", "Desactivar diarizacion de hablantes")
   .option("--hf-token <token>", "Token de HuggingFace para diarizacion")
   .option("-l, --language <lang>", "Idioma de la transcripcion", "es")
+  .option("--compute-type <type>", "Tipo de computacion: int8, float16, float32", "int8")
+  .option("--fast", "Modo rapido: modelo small + int8, sin prompt interactivo")
+  .option("--workers <number>", "Numero de workers para procesamiento paralelo", String(Math.max(1, Math.floor(cpus().length / 2))))
   .action(async (file: string, opts) => {
     try {
       const inputPath = resolve(file);
       validateInputFile(inputPath);
 
+      // Detect whether --compute-type was explicitly passed by the user
+      const computeTypeExplicit = process.argv.includes("--compute-type");
+
+      // --fast mode: override model and compute_type, skip interactive prompt
+      if (opts.fast) {
+        opts.model = "small";
+        opts.computeType = "int8";
+        console.log(chalk.yellow.bold("\n⚡ Modo rapido activado:") + chalk.yellow(" modelo small + int8\n"));
+      }
+
+      // Run hardware detection before model selection (only when not in fast mode)
+      const hw = await detectHardware();
+
+      // Apply hardware-recommended compute type if not explicitly set by user
+      if (!computeTypeExplicit && !opts.fast) {
+        opts.computeType = hw.recommendedComputeType;
+      }
+
       if (!opts.model) {
+        // Show hardware info to guide the user's model selection
+        const hwLabel = hw.hasGpu
+          ? chalk.green("GPU (" + hw.gpuName + ")")
+          : chalk.yellow("CPU (" + hw.cpuCores + " cores)");
+        console.log(`\n  ${chalk.gray("Hardware:")} ${hwLabel}`);
+        console.log(`  ${chalk.gray("Recomendado:")} ${chalk.cyan(hw.recommendedModel)} + ${chalk.cyan(hw.recommendedComputeType)}\n`);
+
         opts.model = await select({
           message: "Selecciona el modelo de Whisper:",
           choices: [
@@ -48,7 +78,7 @@ program
             { name: "medium   (~5 GB VRAM, lenta, calidad muy buena)", value: "medium" },
             { name: "large-v3 (~10 GB VRAM, muy lenta, calidad excelente)", value: "large-v3" },
           ],
-          default: "large-v3",
+          default: hw.recommendedModel,
         });
       }
 
@@ -92,8 +122,12 @@ program
       console.log(chalk.bold.cyan("  ╚══════════════════════════════════════╝\n"));
       console.log(`  ${chalk.gray("Archivo:")}      ${chalk.white(inputPath)}`);
       console.log(`  ${chalk.gray("Modelo:")}       ${chalk.yellow(opts.model)}`);
+      console.log(`  ${chalk.gray("Compute:")}      ${chalk.yellow(opts.computeType)}`);
       console.log(`  ${chalk.gray("Diarizacion:")}  ${opts.diarize ? chalk.green("Si") : chalk.red("No")}`);
       console.log(`  ${chalk.gray("Idioma:")}       ${chalk.white(opts.language)}`);
+      if (parseInt(opts.workers, 10) > 1) {
+        console.log(`  ${chalk.gray("Workers:")}      ${chalk.cyan(opts.workers)}`);
+      }
       console.log(`  ${chalk.gray("Salida:")}       ${chalk.white(outputPath)}\n`);
 
       let audioPath = inputPath;
@@ -113,6 +147,9 @@ program
         diarize: opts.diarize,
         hfToken: opts.hfToken,
         language: opts.language,
+        computeType: opts.computeType,
+        workers: parseInt(opts.workers, 10),
+        hasGpu: hw.hasGpu,
       });
 
       console.log(chalk.blue(`\n▶ [${isVideoFile(inputPath) ? "3/3" : "2/2"}]`) + " Generando Markdown...");
