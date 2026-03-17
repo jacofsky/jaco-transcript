@@ -15,6 +15,7 @@ import {
 import { transcribe } from "./transcribe.js";
 import { formatMarkdown } from "./formatter.js";
 import select from "@inquirer/select";
+import password from "@inquirer/password";
 
 const program = new Command();
 
@@ -49,6 +50,37 @@ program
           ],
           default: "large-v3",
         });
+      }
+
+      // Si no se paso --no-diarize explicitamente, preguntar via menu
+      if (opts.diarize) {
+        const diarizeChoice = await select({
+          message: "Usar diarizacion de hablantes? (identifica quien habla)",
+          choices: [
+            { name: "Si  — Identificar hablantes (requiere HF_TOKEN)", value: true },
+            { name: "No  — Solo transcripcion plana", value: false },
+          ],
+          default: true,
+        });
+        opts.diarize = diarizeChoice;
+      }
+
+      // Si eligio diarizacion, asegurar que haya un HF_TOKEN
+      if (opts.diarize) {
+        const token = opts.hfToken || process.env.HF_TOKEN;
+        if (!token) {
+          const inputToken = await password({
+            message: "Ingresa tu token de HuggingFace (https://huggingface.co/settings/tokens):",
+            mask: "*",
+          });
+
+          if (!inputToken.trim()) {
+            console.warn(chalk.yellow("\n⚠ No se ingreso token. Continuando sin diarizacion...\n"));
+            opts.diarize = false;
+          } else {
+            opts.hfToken = inputToken.trim();
+          }
+        }
       }
 
       const outputPath = opts.output

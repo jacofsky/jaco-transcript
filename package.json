@@ -19,6 +19,7 @@
   "license": "ISC",
   "description": "CLI para transcripcion de audio/video con diarizacion usando Whisper",
   "dependencies": {
+    "@inquirer/password": "^5.0.10",
     "@inquirer/select": "^5.1.2",
     "chalk": "^5.6.2",
     "cli-progress": "^3.12.0",
